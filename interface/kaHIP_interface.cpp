@@ -26,6 +26,7 @@
 #include "../lib/partition/graph_partitioner.h"
 #include "../lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.h"
 #include "../lib/partition/uncoarsening/separator/vertex_separator_algorithm.h"
+#include "../lib/partition/uncoarsening/refinement/cycle_improvements/cycle_refinement.h"
 #include "../app/configuration.h"
 #include "../app/balance_configuration.h"
 #include "../lib/data_structure/matrix/normal_matrix.h"
@@ -90,6 +91,18 @@ void internal_kaffpa_call(PartitionConfig & partition_config,
         graph_partitioner partitioner;
         partitioner.perform_partitioning(partition_config, G);
 
+        if( partition_config.kaffpa_perfectly_balance ) {
+                double epsilon                         = partition_config.imbalance/100.0;
+                partition_config.upper_bound_partition = (1+epsilon)*ceil(partition_config.largest_graph_weight/(double)partition_config.k);
+
+                complete_boundary boundary(&G);
+                boundary.build();
+
+                cycle_refinement cr;
+                cr.perform_refinement(partition_config, G, boundary);
+        }
+
+
         forall_nodes(G, node) {
                 part[node] = G.getPartitionIndex(node);
         } endfor
@@ -108,6 +121,7 @@ void kaffpa(int* n,
                    int* adjncy, 
                    int* nparts, 
                    double* imbalance, 
+                   bool perfectly_balance,
                    bool suppress_output, 
                    int seed,
                    int mode,
@@ -116,6 +130,7 @@ void kaffpa(int* n,
         configuration cfg;
         PartitionConfig partition_config;
         partition_config.k = *nparts;
+        partition_config.kaffpa_perfectly_balance = perfectly_balance;
 
         switch( mode ) {
                 case FAST: 
